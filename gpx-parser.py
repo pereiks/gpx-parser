@@ -2,10 +2,16 @@
 
 from xml.dom.minidom import parse
 import xml.dom.minidom
+import os
+import argparse
 
 
-def parse_file(filename):
+def split_wifi_xml(filename,output_filebase=None):
 	result = {'2.4Ghz':[],'5Ghz':[]}
+	if output_filebase:
+		impl = xml.dom.minidom.getDOMImplementation()
+		xml2_4 = impl.createDocument(None, "gpx", None)
+		xml5 = impl.createDocument(None, "gpx", None)
 	DOMTree = xml.dom.minidom.parse(filename)
 	gpx = DOMTree.documentElement
 	wpts = gpx.getElementsByTagName('wpt')
@@ -22,20 +28,42 @@ def parse_file(filename):
 			else:
 				if len(item.childNodes)>0:
 					wpt_struct[item.tagName] = item.childNodes[0].data
-		print wpt_struct['ChannelID']
 		if int(wpt_struct['ChannelID'])<15:
 			result['2.4Ghz'].append(wpt_struct)
+			if output_filebase:
+				xml2_4.firstChild.appendChild(wpt)
 		else:
 			result['5Ghz'].append(wpt_struct)
+			if output_filebase:
+				xml5.firstChild.appendChild(wpt)
+	if output_filebase:
+		f1 = open(output_filebase+'_2_4.xml','w+')
+		f2 = open(output_filebase+'_5.xml','w+')
+		f1.write(xml2_4.toxml('utf-8'))
+		f2.write(xml5.toxml('utf-8'))
+		f1.close()
+		f2.close()
 	return result
 
+# Arguments hadnling
+parser = argparse.ArgumentParser(description='Parse GPX files in directore <dir> \
+											and splits output to 2,4Ghz and 5Ghz')
+parser.add_argument('directory', metavar='<dir>', type=str, nargs=1, help='directory, where to search for GPX files')
+parser.add_argument('--xml',metavar='<filename_base>',type=str,help='Create output xml files')
+args = parser.parse_args()
+directory = args.directory[0]
+xml_output = args.xml
+#Result init
+results={'2.4Ghz':[],'5Ghz':[]}
+
+# Main
+for file in os.listdir(directory):
+	if file.endswith(".gpx"):
+		result=split_wifi_xml(directory+file,xml_output) #Parse file
+		results['2.4Ghz']+=result['2.4Ghz'] # Append 2.4 part to results
+		results['5Ghz']+=result['5Ghz'] # Append 5 Ghz part to results
+		# Code needed to Display results in selected format
 
 
 
-FiveGhz=[]
-TwodotfourGhz=[]
-
-cur_file = "./testdata/1.gpx"
-results=parse_file(cur_file)
-print results['2.4Ghz'][0]['desc']
 
